@@ -1,0 +1,18 @@
+name: WeltKarte
+version: '1.0.0'
+main: de.weltkarte.WeltKartePlugin
+api-version: '26.3'
+description: Hochauflösende Weltkarte (Minimap links + Web-Karte), Pins, Städte, Gebäude und Wegsteine – ohne Mods.
+authors: [WeltKarte]
+permissions:
+  weltkarte.use:
+    description: Minimap, Orte-Menü, Web-Karte und Wegsteine benutzen
+    default: true
+  weltkarte.admin:
+    description: /karte control, Markierungen setzen, Karte updaten, Welt rendern
+    default: op
+    children:
+      weltkarte.use: true
+  weltkarte.hidden:
+    description: Spieler wird nicht auf der Web-Karte angezeigt
+    default: false

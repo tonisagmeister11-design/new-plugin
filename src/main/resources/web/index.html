@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weltkarte</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#0e1013; --panel:#16191e; --panel2:#1d2127; --line:#2a2f37; --text:#e6e8eb; --muted:#8b939e;
+  --accent:#f0b429; --ok:#3fb950; --danger:#f85149; --purple:#a371f7; --radius:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{display:flex;height:100%}
+#side{width:340px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:1000}
+#side header{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+#side h1{margin:0 0 8px;font-size:18px;font-weight:650;letter-spacing:.2px}
+#side h1 small{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
+.row{display:flex;gap:8px;align-items:center}
+select,input,textarea,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+input,select,textarea{width:100%}
+textarea{resize:vertical;min-height:60px}
+button{cursor:pointer;white-space:nowrap}
+button:hover{border-color:#3d4450}
+button.primary{background:var(--ok);border-color:var(--ok);color:#06140a;font-weight:650}
+button.danger{background:transparent;color:var(--danger);border-color:#5c2a2a}
+button.tool.active{background:var(--accent);color:#1b1300;border-color:var(--accent)}
+#scroll{flex:1;overflow:auto;padding:10px 12px 20px}
+.section{margin:6px 0 14px}
+.section h2{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 4px 6px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;cursor:pointer;user-select:none;font-size:12.5px}
+.chip input{width:auto;margin:0}
+.item{display:flex;gap:10px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer}
+.item:hover{background:var(--panel2)}
+.item .dot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.7)}
+.item .meta{color:var(--muted);font-size:12px}
+.item .name{font-weight:550}
+.empty{color:var(--muted);padding:8px}
+#editor{display:none;border-bottom:1px solid var(--line);padding:10px 12px;background:#191c22}
+#editor.on{display:block}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.tools button{padding:7px 4px;font-size:12.5px}
+#publish{width:100%;padding:10px;margin-top:6px;font-size:15px}
+#status{font-size:12px;color:var(--muted);margin-top:6px;min-height:18px}
+#form{display:none;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+#form.on{display:block}
+#form label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#map{flex:1;background:#08090b}
+.leaflet-container{background:#08090b;font:inherit}
+.leaflet-tile{image-rendering:crisp-edges;image-rendering:pixelated}
+#coords{position:absolute;left:12px;bottom:12px;z-index:900;background:rgba(14,16,19,.85);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font:12.5px ui-monospace,Menlo,Consolas,monospace;pointer-events:none}
+#hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:900;background:var(--accent);color:#1b1300;padding:6px 14px;border-radius:999px;font-weight:600;display:none}
+#toast{position:absolute;right:16px;bottom:16px;z-index:1200;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:10px 14px;display:none;max-width:360px}
+#menuBtn{display:none;position:absolute;top:10px;left:10px;z-index:1100}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+.leaflet-popup-content{margin:12px 14px;min-width:200px}
+.leaflet-popup-content h3{margin:0 0 2px;font-size:16px}
+.pop-type{color:var(--muted);font-size:12px;margin-bottom:6px}
+.pop-coords{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);margin-top:6px}
+.pop-ws{margin-top:8px;padding:6px 8px;border-radius:6px;background:#221a33;color:#d2b8ff;font-size:12.5px}
+.leaflet-control-zoom a{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}
+/* Marker */
+.mk{position:relative}
+.mk .pin{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.6);position:absolute;left:0;top:0}
+.mk .sq{width:16px;height:16px;border-radius:4px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.6);position:absolute;left:3px;top:3px}
+.mk .ws{width:18px;height:18px;transform:rotate(45deg);border:2px solid #fff;background:var(--purple);box-shadow:0 0 10px var(--purple);position:absolute;left:2px;top:2px}
+.mk .city{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.7)}
+.mk .lbl{position:absolute;left:26px;top:2px;white-space:nowrap;font-weight:600;font-size:12.5px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 0 2px #000;display:none}
+.mk.city-mk .lbl{display:block;font-size:15px;top:0}
+.zoom-near .mk .lbl{display:block}
+.pl{color:#fff;font-weight:600;font-size:12px;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap}
+.pl .arrow{display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:14px solid #4fc3f7;filter:drop-shadow(0 0 2px #000);vertical-align:middle;margin-right:4px}
+.draft-badge{display:inline-block;background:var(--accent);color:#1b1300;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:6px}
+@media (max-width:760px){
+  #side{position:absolute;inset:0 auto 0 0;width:88vw;max-width:360px;transform:translateX(-100%);transition:transform .2s}
+  #side.open{transform:none}
+  #menuBtn{display:block}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1 id="title">Weltkarte <small id="sub"></small></h1>
+      <div class="row">
+        <select id="world" aria-label="Welt"></select>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="search" placeholder="Ort, Stadt, Gebäude, Besitzer suchen…" autocomplete="off">
+      </div>
+    </header>
+    <div id="editor">
+      <div class="row" style="justify-content:space-between">
+        <strong>🛠 Karten-Editor</strong>
+        <label class="chip" title="Zeigt die Karte so, wie Spieler sie gerade sehen"><input type="checkbox" id="liveView"> Live-Ansicht</label>
+      </div>
+      <div class="tools">
+        <button class="tool" data-tool="ORT">📍 Ort</button>
+        <button class="tool" data-tool="STADT">🏙 Stadt</button>
+        <button class="tool" data-tool="GEBAEUDE">🏠 Gebäude</button>
+        <button class="tool" data-tool="AREA">▭ Fläche</button>
+        <button class="tool" data-tool="WEGSTEIN">✦ Wegstein</button>
+        <button class="tool" data-tool="">✋ Auswahl</button>
+      </div>
+      <button id="publish" class="primary">✔ Karte updaten</button>
+      <div id="status"></div>
+      <div id="form">
+        <label>Name</label><input id="f-name" maxlength="64">
+        <div class="grid2">
+          <div><label>Typ</label>
+            <select id="f-type"><option value="ORT">Ort</option><option value="STADT">Stadt</option><option value="GEBAEUDE">Gebäude</option><option value="WEGSTEIN">Wegstein</option></select></div>
+          <div><label>Farbe</label><input id="f-color" type="color" style="padding:2px;height:36px"></div>
+        </div>
+        <label>Besitzer (Spieler)</label><input id="f-owner" maxlength="32">
+        <label>Beschreibung</label><textarea id="f-desc" maxlength="500"></textarea>
+        <div class="grid2">
+          <div><label>X</label><input id="f-x" type="number"></div>
+          <div><label>Z</label><input id="f-z" type="number"></div>
+        </div>
+        <div class="grid2" id="f-area">
+          <div><label>X2 (Fläche)</label><input id="f-x2" type="number"></div>
+          <div><label>Z2 (Fläche)</label><input id="f-z2" type="number"></div>
+        </div>
+        <label>Höhe Y (leer = automatisch)</label><input id="f-y" type="number">
+        <div class="row" style="margin-top:10px">
+          <button id="f-del" class="danger">Löschen</button>
+          <span style="flex:1"></span>
+          <button id="f-close">Fertig</button>
+        </div>
+      </div>
+    </div>
+    <div id="scroll">
+      <div class="section">
+        <h2>Ebenen</h2>
+        <div class="chips" id="layers"></div>
+      </div>
+      <div class="section">
+        <h2 id="listTitle">Orte</h2>
+        <div id="list"></div>
+      </div>
+      <div class="section" id="playersSection">
+        <h2>Spieler online</h2>
+        <div id="players"></div>
+      </div>
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+<button id="menuBtn">☰ Menü</button>
+<div id="coords">X – Z –</div>
+<div id="hint"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const TYPES = {
+  ORT:{name:"Ort", icon:"📍"}, STADT:{name:"Stadt", icon:"🏙"}, GEBAEUDE:{name:"Gebäude", icon:"🏠"}, WEGSTEIN:{name:"Wegstein", icon:"✦"}
+};
+const EMPTY = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ll = (x, z) => L.latLng(-z, x);
+const blk = latlng => ({x: Math.floor(latlng.lng), z: Math.floor(-latlng.lat)});
+
+// ---------- Zustand ----------
+let cfg = null, world = null, tiles = null;
+let published = [], draft = [], players = [];
+let token = null, editing = false, tool = "", areaStart = null, selected = null;
+let saveTimer = null, lastVersion = -1;
+const visible = {ORT:true, STADT:true, GEBAEUDE:true, WEGSTEIN:true, PLAYERS:true};
+const markerLayer = L.layerGroup(), areaLayer = L.layerGroup(), playerLayer = L.layerGroup();
+
+// Editor-Token aus dem Link (#edit=...) übernehmen und aus der Adresszeile entfernen
+(function readHash(){
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("edit")) {
+    try { sessionStorage.setItem("wk-token", h.get("edit")); } catch(e) {}
+    token = h.get("edit");
+    h.delete("edit");
+    history.replaceState(null, "", location.pathname + (h.toString() ? "#" + h : ""));
+  } else {
+    try { token = sessionStorage.getItem("wk-token"); } catch(e) {}
+  }
+})();
+
+const map = L.map("map", {crs: L.CRS.Simple, minZoom: -6, maxZoom: 5, zoomSnap: 1, attributionControl: false, zoomControl: true});
+markerLayer.addTo(map); areaLayer.addTo(map); playerLayer.addTo(map);
+areaLayer.setZIndex?.(1);
+
+function setTiles(){
+  if (tiles) map.removeLayer(tiles);
+  tiles = L.tileLayer("tiles/" + encodeURIComponent(world) + "/{z}/{x}/{y}.png", {
+    tileSize: 512, minZoom: -6, maxZoom: 5, minNativeZoom: -6, maxNativeZoom: 0, noWrap: true,
+    errorTileUrl: EMPTY, keepBuffer: 1, updateWhenZooming: false
+  }).addTo(map);
+}
+
+function current(){ return (editing && !$("#liveView").checked) ? draft : published; }
+
+function nearestWaystone(m){
+  let best = null, bd = 200*200;
+  for (const w of published) {
+    if (w.type !== "WEGSTEIN" || w.world !== m.world || w.id === m.id) continue;
+    const d = (cx(w)-cx(m))**2 + (cz(w)-cz(m))**2;
+    if (d <= bd) { bd = d; best = w; }
+  }
+  return best ? {w: best, d: Math.round(Math.sqrt(bd))} : null;
+}
+const isArea = m => m.x2 != null && m.z2 != null;
+const cx = m => isArea(m) ? (m.x + m.x2) / 2 : m.x;
+const cz = m => isArea(m) ? (m.z + m.z2) / 2 : m.z;
+
+function iconFor(m){
+  const c = esc(m.color || "#e53935");
+  let shape;
+  if (m.type === "WEGSTEIN") shape = `<div class="ws"></div>`;
+  else if (m.type === "STADT") shape = `<div class="city" style="background:${c}"></div>`;
+  else if (m.type === "GEBAEUDE") shape = `<div class="sq" style="background:${c}"></div>`;
+  else shape = `<div class="pin" style="background:${c}"></div>`;
+  return L.divIcon({className: "mk" + (m.type === "STADT" ? " city-mk" : ""), html: shape + `<div class="lbl">${esc(m.name)}</div>`,
+    iconSize: [22,22], iconAnchor: m.type === "ORT" ? [11,26] : [11,11], popupAnchor: [0,-20]});
+}
+
+function popupHtml(m){
+  const t = TYPES[m.type] || TYPES.ORT;
+  let h = `<h3>${esc(m.name)}</h3><div class="pop-type">${t.icon} ${t.name}${isArea(m) ? " · Fläche" : ""}</div>`;
+  if (m.description) h += `<div>${esc(m.description).replace(/\n/g,"<br>")}</div>`;
+  if (m.owner) h += `<div style="margin-top:4px">👤 Besitzer: <b>${esc(m.owner)}</b></div>`;
+  h += `<div class="pop-coords">X ${Math.floor(cx(m))}${m.y != null ? " · Y " + Math.floor(m.y) : ""} · Z ${Math.floor(cz(m))}</div>`;
+  if (m.type === "WEGSTEIN") h += `<div class="pop-ws">✦ Wegstein – im Spiel anklicken, um ihn zu entdecken und von hier aus zu reisen.</div>`;
+  else { const n = nearestWaystone(m); if (n) h += `<div class="pop-ws">✦ Wegstein „${esc(n.w.name)}“ in ${n.d} m – im Spiel über /karte orte hinreisen.</div>`; }
+  return h;
+}
+
+function render(){
+  markerLayer.clearLayers(); areaLayer.clearLayers();
+  const list = current().filter(m => m.world === world);
+  for (const m of list) {
+    if (!visible[m.type]) continue;
+    if (isArea(m)) {
+      const r = L.rectangle([ll(Math.min(m.x,m.x2), Math.min(m.z,m.z2)), ll(Math.max(m.x,m.x2)+1, Math.max(m.z,m.z2)+1)],
+        {color: m.color, weight: 2, fillOpacity: .15});
+      r.bindPopup(() => popupHtml(m));
+      if (editing) r.on("click", () => select(m.id));
+      areaLayer.addLayer(r);
+    }
+    const mk = L.marker(ll(cx(m) + .5, cz(m) + .5), {icon: iconFor(m), draggable: editing && !$("#liveView").checked && !isArea(m), riseOnHover: true});
+    mk.bindPopup(() => popupHtml(m));
+    mk.on("click", () => { if (editing) select(m.id); });
+    mk.on("dragend", e => {
+      const p = blk(e.target.getLatLng());
+      const d = draft.find(x => x.id === m.id);
+      if (d) { d.x = p.x; d.z = p.z; if (d.type === "WEGSTEIN") d.y = null; changed(); if (selected === d.id) fillForm(d); }
+    });
+    markerLayer.addLayer(mk);
+  }
+  renderList();
+}
+
+function renderList(){
+  const q = $("#search").value.trim().toLowerCase();
+  const list = current().filter(m => m.world === world && visible[m.type])
+    .filter(m => !q || (m.name + " " + (m.owner||"") + " " + (m.description||"")).toLowerCase().includes(q))
+    .sort((a,b) => (a.type === "STADT" ? -1 : 0) - (b.type === "STADT" ? -1 : 0) || a.name.localeCompare(b.name, "de"));
+  $("#listTitle").textContent = (editing && !$("#liveView").checked ? "Entwurf" : "Orte") + " (" + list.length + ")";
+  $("#list").innerHTML = list.length ? "" : `<div class="empty">${q ? "Nichts gefunden." : "Noch keine Markierungen in dieser Welt."}</div>`;
+  for (const m of list.slice(0, 400)) {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<span class="dot" style="background:${esc(m.type === "WEGSTEIN" ? "#a371f7" : m.color)}"></span>
+      <div><div class="name">${esc(m.name)}</div><div class="meta">${TYPES[m.type]?.name || ""}${m.owner ? " · " + esc(m.owner) : ""} · X ${Math.floor(cx(m))} Z ${Math.floor(cz(m))}</div></div>`;
+    el.onclick = () => { map.setView(ll(cx(m)+.5, cz(m)+.5), Math.max(map.getZoom(), 1)); if (editing) select(m.id); closeSideMobile(); };
+    $("#list").appendChild(el);
+  }
+}
+
+function renderPlayers(){
+  playerLayer.clearLayers();
+  const here = players.filter(p => p.world === world);
+  $("#players").innerHTML = here.length ? "" : `<div class="empty">Niemand in dieser Welt.</div>`;
+  for (const p of here) {
+    if (visible.PLAYERS) {
+      const icon = L.divIcon({className: "", iconSize: [0,0], html:
+        `<div class="pl" style="transform:translate(-6px,-7px)"><span class="arrow" style="transform:rotate(${p.yaw + 180}deg)"></span>${esc(p.name)}</div>`});
+      playerLayer.addLayer(L.marker(ll(p.x, p.z), {icon, interactive: false, keyboard: false}));
+    }
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<span class="dot" style="background:#4fc3f7"></span><div><div class="name">${esc(p.name)}</div><div class="meta">X ${Math.floor(p.x)} Z ${Math.floor(p.z)}</div></div>`;
+    el.onclick = () => { map.setView(ll(p.x, p.z), Math.max(map.getZoom(), 1)); closeSideMobile(); };
+    $("#players").appendChild(el);
+  }
+}
+
+function buildLayers(){
+  const names = {ORT:"📍 Orte", STADT:"🏙 Städte", GEBAEUDE:"🏠 Gebäude", WEGSTEIN:"✦ Wegsteine", PLAYERS:"👤 Spieler"};
+  $("#layers").innerHTML = "";
+  for (const k of Object.keys(names)) {
+    if (k === "PLAYERS" && !cfg.showPlayers) continue;
+    const l = document.createElement("label");
+    l.className = "chip";
+    l.innerHTML = `<input type="checkbox" ${visible[k] ? "checked" : ""}> ${names[k]}`;
+    l.querySelector("input").onchange = e => { visible[k] = e.target.checked; render(); renderPlayers(); };
+    $("#layers").appendChild(l);
+  }
+}
+
+// ---------- Laden ----------
+async function api(path, opts = {}){
+  const headers = Object.assign({}, opts.headers || {});
+  if (token && path.startsWith("api/editor/")) headers["X-Token"] = token;
+  const r = await fetch(path, Object.assign({}, opts, {headers}));
+  if (!r.ok) { let msg = r.status; try { msg = (await r.json()).error || msg; } catch(e){} throw new Error(msg); }
+  return r.json();
+}
+
+async function loadConfig(){
+  cfg = await api("api/config");
+  document.title = cfg.title;
+  $("#title").firstChild.textContent = cfg.title + " ";
+  const sel = $("#world");
+  sel.innerHTML = cfg.worlds.map(w => `<option value="${esc(w.name)}">${esc(w.name)}${w.environment === "NETHER" ? " (Nether)" : w.environment === "THE_END" ? " (End)" : ""}</option>`).join("");
+  if (world) sel.value = world;
+  $("#playersSection").style.display = cfg.showPlayers ? "" : "none";
+  if (lastVersion !== cfg.version) { lastVersion = cfg.version; published = await api("api/markers"); render(); }
+}
+
+function switchWorld(name, center = true){
+  world = name;
+  $("#world").value = name;
+  setTiles();
+  if (center) {
+    const w = cfg.worlds.find(w => w.name === name);
+    map.setView(ll(w ? w.spawnX : 0, w ? w.spawnZ : 0), -1);
+  }
+  render(); renderPlayers();
+}
+
+async function pollPlayers(){
+  if (!cfg.showPlayers) return;
+  try { players = await api("api/players"); renderPlayers(); } catch(e) {}
+}
+
+// ---------- Editor ----------
+async function initEditor(){
+  try {
+    const s = await api("api/editor/session");
+    editing = true;
+    $("#editor").classList.add("on");
+    $("#sub").innerHTML = `Editor · ${esc(s.name)}`;
+    draft = await api("api/editor/draft");
+    updatePending();
+    render();
+  } catch (e) {
+    try { sessionStorage.removeItem("wk-token"); } catch(_) {}
+    token = null;
+    toast("Editor-Zugang ungültig: " + e.message, true);
+  }
+}
+
+function setTool(t){
+  tool = t; areaStart = null;
+  document.querySelectorAll(".tool").forEach(b => b.classList.toggle("active", b.dataset.tool === t && t !== ""));
+  map.getContainer().style.cursor = t ? "crosshair" : "";
+  hint(t === "AREA" ? "Klicke die erste Ecke des Gebäudes" : t ? "Klicke auf die Karte, um " + TYPES[t].name + " zu setzen" : "");
+}
+
+function hint(text){ const h = $("#hint"); h.textContent = text; h.style.display = text ? "block" : "none"; }
+
+function newId(){ return Math.random().toString(36).slice(2, 10); }
+
+map.on("click", e => {
+  if (!editing || !tool || $("#liveView").checked) return;
+  const p = blk(e.latlng);
+  if (tool === "AREA") {
+    if (!areaStart) { areaStart = p; hint("Jetzt die gegenüberliegende Ecke klicken"); return; }
+    const m = {id: newId(), name: "Neues Gebäude", description: "", type: "GEBAEUDE", world, x: Math.min(areaStart.x, p.x), z: Math.min(areaStart.z, p.z),
+      x2: Math.max(areaStart.x, p.x), z2: Math.max(areaStart.z, p.z), y: null, color: "#fb8c00", owner: "", created: Date.now()};
+    draft.push(m); setTool(""); changed(); select(m.id); return;
+  }
+  const colors = {ORT:"#e53935", STADT:"#fdd835", GEBAEUDE:"#fb8c00", WEGSTEIN:"#7e57c2"};
+  const m = {id: newId(), name: tool === "STADT" ? "Neue Stadt" : tool === "WEGSTEIN" ? "Neuer Wegstein" : tool === "GEBAEUDE" ? "Neues Gebäude" : "Neuer Ort",
+    description: "", type: tool, world, x: p.x, z: p.z, y: null, color: colors[tool], owner: "", created: Date.now()};
+  draft.push(m); setTool(""); changed(); select(m.id);
+});
+
+function select(id){
+  if ($("#liveView").checked) return;
+  selected = id;
+  const m = draft.find(x => x.id === id);
+  if (!m) { $("#form").classList.remove("on"); return; }
+  fillForm(m);
+  $("#form").classList.add("on");
+  $("#f-name").focus(); $("#f-name").select();
+}
+
+function fillForm(m){
+  $("#f-name").value = m.name; $("#f-type").value = m.type; $("#f-color").value = /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : "#e53935";
+  $("#f-owner").value = m.owner || ""; $("#f-desc").value = m.description || "";
+  $("#f-x").value = m.x; $("#f-z").value = m.z; $("#f-y").value = m.y ?? "";
+  $("#f-x2").value = m.x2 ?? ""; $("#f-z2").value = m.z2 ?? "";
+}
+
+function readForm(){
+  const m = draft.find(x => x.id === selected);
+  if (!m) return;
+  m.name = $("#f-name").value.slice(0, 64) || "Unbenannt";
+  m.type = $("#f-type").value;
+  m.color = $("#f-color").value;
+  m.owner = $("#f-owner").value.slice(0, 32);
+  m.description = $("#f-desc").value.slice(0, 500);
+  const num = v => v === "" ? null : Math.floor(Number(v));
+  m.x = num($("#f-x").value) ?? m.x; m.z = num($("#f-z").value) ?? m.z;
+  m.y = num($("#f-y").value);
+  const x2 = num($("#f-x2").value), z2 = num($("#f-z2").value);
+  if (x2 != null && z2 != null && m.type !== "WEGSTEIN") { m.x2 = x2; m.z2 = z2; } else { delete m.x2; delete m.z2; }
+  changed();
+}
+["#f-name","#f-type","#f-color","#f-owner","#f-desc","#f-x","#f-z","#f-y","#f-x2","#f-z2"].forEach(s => $(s).addEventListener("change", readForm));
+$("#f-name").addEventListener("input", () => { clearTimeout(window._nt); window._nt = setTimeout(readForm, 400); });
+$("#f-close").onclick = () => { readForm(); selected = null; $("#form").classList.remove("on"); };
+$("#f-del").onclick = () => {
+  const m = draft.find(x => x.id === selected);
+  if (!m || !confirm(`„${m.name}“ wirklich löschen?`)) return;
+  draft = draft.filter(x => x.id !== selected); selected = null; $("#form").classList.remove("on"); changed();
+};
+
+function changed(){
+  render();
+  $("#status").textContent = "Speichere…";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveDraft, 500);
+}
+
+async function saveDraft(){
+  try {
+    const r = await api("api/editor/draft", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(draft)});
+    showPending(r.pending);
+  } catch (e) { $("#status").textContent = "⚠ Speichern fehlgeschlagen: " + e.message; }
+}
+
+async function updatePending(){ try { showPending((await api("api/editor/pending")).pending); } catch(e) {} }
+function showPending(n){
+  $("#status").innerHTML = n ? `✓ Entwurf gespeichert · <b style="color:var(--accent)">${n} Änderung(en)</b> noch nicht live` : "✓ Entwurf gespeichert · alles ist live";
+}
+
+$("#publish").onclick = async () => {
+  if (!confirm("Karte jetzt für ALLE Spieler aktualisieren?")) return;
+  clearTimeout(saveTimer);
+  await saveDraft();
+  try {
+    await api("api/editor/publish", {method: "POST"});
+    toast("✔ Karte wurde für alle Spieler aktualisiert!");
+    setTimeout(async () => { lastVersion = -1; await loadConfig(); draft = await api("api/editor/draft"); updatePending(); render(); }, 800);
+  } catch (e) { toast("Fehler: " + e.message, true); }
+};
+
+document.querySelectorAll(".tool").forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$("#liveView").onchange = () => { $("#form").classList.remove("on"); render(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") setTool(""); });
+
+// ---------- Allgemein ----------
+function toast(text, bad){
+  const t = $("#toast"); t.textContent = text; t.style.borderLeftColor = bad ? "var(--danger)" : "var(--ok)"; t.style.display = "block";
+  clearTimeout(window._tt); window._tt = setTimeout(() => t.style.display = "none", 4500);
+}
+function closeSideMobile(){ $("#side").classList.remove("open"); }
+$("#menuBtn").onclick = () => $("#side").classList.toggle("open");
+$("#search").addEventListener("input", renderList);
+$("#search").addEventListener("keydown", e => { if (e.key === "Enter") $("#list .item")?.click(); });
+$("#world").onchange = e => switchWorld(e.target.value);
+
+map.on("mousemove", e => {
+  const p = blk(e.latlng);
+  $("#coords").textContent = `X ${p.x}  Z ${p.z}`;
+});
+map.on("zoomend", () => map.getContainer().classList.toggle("zoom-near", map.getZoom() >= 0));
+map.on("moveend", () => {
+  const c = blk(map.getCenter());
+  const h = new URLSearchParams({w: world, x: c.x, z: c.z, zoom: map.getZoom()});
+  history.replaceState(null, "", location.pathname + "#" + h);
+});
+
+(async function start(){
+  try { await loadConfig(); } catch (e) { toast("Server nicht erreichbar: " + e.message, true); return; }
+  if (!cfg.worlds.length) { toast("Keine Welt freigegeben (config.yml → render.worlds).", true); return; }
+  buildLayers();
+  const h = new URLSearchParams(location.hash.slice(1));
+  const startWorld = cfg.worlds.some(w => w.name === h.get("w")) ? h.get("w") : cfg.worlds[0].name;
+  switchWorld(startWorld, !h.has("x"));
+  if (h.has("x")) map.setView(ll(+h.get("x"), +h.get("z")), +(h.get("zoom") ?? 0));
+  map.getContainer().classList.toggle("zoom-near", map.getZoom() >= 0);
+  if (token) await initEditor();
+  pollPlayers();
+  setInterval(pollPlayers, 2000);
+  setInterval(() => loadConfig().catch(() => {}), 10000);
+  setInterval(() => { if (tiles) tiles.redraw(); }, 120000);
+})();
+</script>
+</body>
+</html>

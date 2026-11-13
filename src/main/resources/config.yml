@@ -1,0 +1,62 @@
+# ============================================================
+#  WeltKarte – Konfiguration
+# ============================================================
+
+minimap:
+  # Spieler bekommen beim Betreten automatisch die Karte in die linke Hand (Zweithand)
+  give-on-join: true
+  # Andere Spieler auf der Minimap anzeigen
+  show-other-players: true
+  # Namen der Markierungen anzeigen, solange 1 Pixel höchstens so viele Blöcke zeigt
+  captions-up-to-blocks-per-pixel: 4
+  # Maximal angezeigte Markierungen auf der Minimap
+  max-markers: 25
+
+render:
+  # Welche Welten gerendert werden ([] = alle)
+  worlds: []
+  # Chunks automatisch rendern, wenn sie geladen werden (Spieler erkunden → Karte wächst)
+  render-on-chunk-load: true
+  # Bereits gerenderte Chunks beim erneuten Laden frühestens nach X Minuten neu rendern
+  rerender-loaded-chunks-after-minutes: 10
+  # Wie viele Chunks pro Server-Tick an die Render-Threads übergeben werden
+  chunks-per-tick: 10
+  # Render-Threads (laufen neben dem Server, nicht im Haupt-Thread)
+  threads: 2
+  # Radius (in Blöcken) für "Welt rendern" im Menü bzw. /karte render ohne Angabe
+  default-full-render-radius: 3000
+  # Gleichzeitig geladene Chunks beim kompletten Rendern (höher = schneller, mehr Last)
+  full-render-parallel-chunks: 24
+  # Kacheln (je 512x512 Blöcke, ~1 MB RAM) im Arbeitsspeicher
+  tile-cache-size: 48
+
+waystones:
+  # Spieler müssen einen Wegstein erst einmal anklicken, bevor sie dorthin reisen können
+  require-discovery: true
+  # false = Reisen nur, wenn man an einem Wegstein steht; true = von überall (über /karte orte)
+  teleport-from-anywhere: false
+  # Abstand (Blöcke), in dem ein Spieler als "am Wegstein" gilt
+  use-radius: 6
+  # Ein Ort gilt als per Wegstein erreichbar, wenn ein Wegstein höchstens so weit entfernt ist
+  destination-radius: 200
+  cooldown-seconds: 20
+  # Kosten in XP-Leveln pro Reise (0 = kostenlos)
+  xp-level-cost: 0
+
+web:
+  enabled: true
+  # Port der Web-Karte. Muss bei deinem Hoster freigegeben sein!
+  port: 8100
+  bind: 0.0.0.0
+  # Adresse, unter der Spieler die Karte erreichen, z. B. http://123.45.67.89:8100 oder https://karte.meinserver.de
+  # Leer = wird aus server-ip + port gebaut
+  public-url: ''
+  title: 'Weltkarte'
+  show-players: true
+  # Wie lange ein Editor-Link aus /karte control gültig ist
+  editor-session-hours: 2
+  threads: 4
+
+# Nicht ändern – ID der Minecraft-Karte, die für die Minimap benutzt wird
+internal:
+  map-id: -1
